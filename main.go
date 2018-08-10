@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"flag"
 	"fmt"
+	lib "github.com/dpindur/get-good/libgetgood"
 	_ "github.com/mattn/go-sqlite3"
 	"log"
 	"net/url"
@@ -83,6 +84,29 @@ func main() {
 	log.Printf("Extensions: (blank)%v\n", strings.Join(extensions, ","))
 	log.Printf("Resuming existing directory bust: %v\n", !*clearDB)
 
+	db, err := lib.OpenDatabaseConnection(dbFilePath)
+	if err != nil {
+		fmt.Println("error opening database connection")
+		fmt.Printf("%v\n", err)
+		os.Exit(1)
+	}
+
+	err = db.CreateSchema()
+	if err != nil {
+		fmt.Println("error creating database schema")
+		fmt.Printf("%v\n", err)
+		os.Exit(1)
+	}
+
+	if *clearDB {
+		err = db.Clear()
+		if err != nil {
+			fmt.Println("error clearing database")
+			fmt.Printf("%v\n", err)
+			os.Exit(1)
+		}
+	}
+
 	reader := bufio.NewReader(os.Stdin)
 	running := true
 	for running {
@@ -92,12 +116,19 @@ func main() {
 			running = false
 			break
 		}
-		
+
 		cmd = strings.TrimSuffix(cmd, "\n")
 		switch cmd {
 		case "q":
 			running = false
 			break
 		}
+	}
+
+	err = db.CloseDatabaseConnection()
+	if err != nil {
+		fmt.Printf("error closing database connection")
+		fmt.Printf("%v\n", err)
+		os.Exit(1)
 	}
 }
