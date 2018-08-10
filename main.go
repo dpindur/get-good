@@ -72,7 +72,13 @@ func main() {
 	splitExtensions := strings.Split(*extensionsFlag, ",")
 	extensions := make([]string, 0)
 	extensions = append(extensions, "")
-	extensions = append(extensions, splitExtensions...)
+	for _, ext := range splitExtensions {
+		if !strings.HasPrefix(ext, ".") {
+			extensions = append(extensions, "." + ext)
+		} else {
+			extensions = append(extensions, ext)
+		}
+	}
 
 	if flagsInvalid {
 		os.Exit(1)
@@ -82,7 +88,7 @@ func main() {
 	log.Printf("Worker threads: %v\n", *workerCount)
 	log.Printf("Database file: %v\n", dbFilePath)
 	log.Printf("Wordlist file: %v\n", wordsFilePath)
-	log.Printf("Extensions: (blank)%v\n", strings.Join(extensions, ","))
+	log.Printf("Extensions: (blank)%v\n", strings.Join(extensions, ", "))
 	log.Printf("Resuming existing directory bust: %v\n", !*clearDB)
 
 	db, err := lib.OpenDatabaseConnection(dbFilePath)
@@ -91,6 +97,15 @@ func main() {
 		fmt.Printf("%v\n", err)
 		os.Exit(1)
 	}
+
+	defer func() {
+		err = db.CloseDatabaseConnection()
+		if err != nil {
+			fmt.Printf("error closing database connection")
+			fmt.Printf("%v\n", err)
+			os.Exit(1)
+		}
+	}()
 
 	err = db.CreateSchema()
 	if err != nil {
@@ -108,9 +123,42 @@ func main() {
 		}
 	}
 
+	// Process the wordlist
+	words := make([]string, 0)
+	wordlist, err := os.Open(wordsFilePath)
+	if err != nil {
+		fmt.Println("error opening wordlist file")
+		fmt.Printf("%v\n", err)
+		os.Exit(1)
+	}
+	scanner := bufio.NewScanner(wordlist)
+	for scanner.Scan() {
+		word := scanner.Text()
+		words = append(words, word)
+	}
+	err = scanner.Err()
+	if err != nil {
+		fmt.Println("error reading wordlist file")
+		fmt.Printf("%v\n", err)
+		os.Exit(1)
+	}
+
+	// Handler for worker errors
+	errChan := make(chan *lib.WorkerError)
+	var workerErr *lib.WorkerError
+	go func() {
+		workerErr = <-errChan
+		fmt.Printf("error in worker routine: %v\n", workerErr.Worker)
+		fmt.Printf("%v\n", workerErr.Error)
+		fmt.Printf("enter any key to continue\n")
+	}()
+
 	// Start workers
 	wg := &sync.WaitGroup{}
-	updater := lib.StartUpdater(wg, db)
+	updater := lib.StartUpdater(wg, db, errChan, words, extensions)
+
+	// Enqueue initial request
+	updater.EnqueueRequest(&lib.Request{*urlStr})
 
 	reader := bufio.NewReader(os.Stdin)
 	running := true
@@ -118,6 +166,13 @@ func main() {
 		cmd, err := reader.ReadString('\n')
 		if err != nil {
 			fmt.Printf("error reading from stdin: %v\n", err)
+			running = false
+			break
+		}
+
+		// Don't bother processing commands if a worker has failed and
+		// cannot be recovered
+		if workerErr != nil {
 			running = false
 			break
 		}
@@ -131,12 +186,9 @@ func main() {
 		}
 	}
 
-	wg.Wait()
-
-	err = db.CloseDatabaseConnection()
-	if err != nil {
-		fmt.Printf("error closing database connection")
-		fmt.Printf("%v\n", err)
-		os.Exit(1)
+	if workerErr == nil {
+		wg.Wait()
+	} else {
+		fmt.Printf("terminating without properly halting routines... sorry\n")
 	}
 }
