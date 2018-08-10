@@ -11,6 +11,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 )
 
 func main() {
@@ -107,12 +108,16 @@ func main() {
 		}
 	}
 
+	// Start workers
+	wg := &sync.WaitGroup{}
+	updater := lib.StartUpdater(wg, db)
+
 	reader := bufio.NewReader(os.Stdin)
 	running := true
 	for running {
 		cmd, err := reader.ReadString('\n')
 		if err != nil {
-			fmt.Printf("Error reading from stdin: %v\n", err)
+			fmt.Printf("error reading from stdin: %v\n", err)
 			running = false
 			break
 		}
@@ -121,9 +126,12 @@ func main() {
 		switch cmd {
 		case "q":
 			running = false
+			updater.Stop()
 			break
 		}
 	}
+
+	wg.Wait()
 
 	err = db.CloseDatabaseConnection()
 	if err != nil {
