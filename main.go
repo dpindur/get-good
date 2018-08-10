@@ -1,9 +1,11 @@
 package main
 
 import (
+	"bufio"
 	"flag"
 	"fmt"
 	_ "github.com/mattn/go-sqlite3"
+	"log"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -74,7 +76,28 @@ func main() {
 		os.Exit(1)
 	}
 
-	_ = clearDB
-	_ = dbFilePath
-	_ = wordsFilePath
+	log.Printf("Starting get-good directory bust of %v\n", *urlStr)
+	log.Printf("Worker threads: %v\n", *workerCount)
+	log.Printf("Database file: %v\n", dbFilePath)
+	log.Printf("Wordlist file: %v\n", wordsFilePath)
+	log.Printf("Extensions: (blank)%v\n", strings.Join(extensions, ","))
+	log.Printf("Resuming existing directory bust: %v\n", !*clearDB)
+
+	reader := bufio.NewReader(os.Stdin)
+	running := true
+	for running {
+		cmd, err := reader.ReadString('\n')
+		if err != nil {
+			fmt.Printf("Error reading from stdin: %v\n", err)
+			running = false
+			break
+		}
+		
+		cmd = strings.TrimSuffix(cmd, "\n")
+		switch cmd {
+		case "q":
+			running = false
+			break
+		}
+	}
 }
