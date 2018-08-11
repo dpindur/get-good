@@ -74,7 +74,7 @@ func main() {
 	extensions = append(extensions, "")
 	for _, ext := range splitExtensions {
 		if !strings.HasPrefix(ext, ".") {
-			extensions = append(extensions, "." + ext)
+			extensions = append(extensions, "."+ext)
 		} else {
 			extensions = append(extensions, ext)
 		}
@@ -156,6 +156,7 @@ func main() {
 	// Start workers
 	wg := &sync.WaitGroup{}
 	updater := lib.StartUpdater(wg, db, errChan, words, extensions)
+	poller := lib.StartPoller(wg, db, errChan)
 
 	// Enqueue initial request
 	updater.EnqueueRequest(&lib.Request{*urlStr})
@@ -182,6 +183,7 @@ func main() {
 		case "q":
 			running = false
 			updater.Stop()
+			poller.Stop()
 			break
 		}
 	}
