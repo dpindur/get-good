@@ -54,6 +54,32 @@ func (conn *DBConn) RequestExists(uri string) (bool, error) {
 	}
 }
 
+func (conn *DBConn) GetIncompleteRequests() ([]string, error) {
+	rows, err := conn.db.Query("SELECT uri FROM requests WHERE status = ? LIMIT 50", Unprocessed)
+	if err != nil {
+		return nil, err
+	}
+
+	requests := make([]string, 0)
+
+	defer rows.Close()
+	for rows.Next() {
+		var uri string
+		err = rows.Scan(&uri)
+		if err != nil {
+			return nil, err
+		}
+		requests = append(requests, uri)
+	}
+
+	return requests, nil
+}
+
+func (conn *DBConn) SetRequestInflight(uri string) error {
+	_, err := conn.db.Exec("UPDATE requests SET status = ? WHERE uri = ?", Inflight, uri)
+	return err
+}
+
 func OpenDatabaseConnection(filename string) (*DBConn, error) {
 	db, err := sql.Open("sqlite3", filename)
 	mutex := &sync.Mutex{}

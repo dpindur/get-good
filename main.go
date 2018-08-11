@@ -155,8 +155,9 @@ func main() {
 
 	// Start workers
 	wg := &sync.WaitGroup{}
+	requestChan := make(chan *lib.Request, 100)
 	updater := lib.StartUpdater(wg, db, errChan, words, extensions)
-	poller := lib.StartPoller(wg, db, errChan)
+	poller := lib.StartPoller(wg, db, errChan, requestChan)
 
 	// Enqueue initial request
 	updater.EnqueueRequest(&lib.Request{*urlStr})
