@@ -153,11 +153,19 @@ func main() {
 		fmt.Printf("enter any key to continue\n")
 	}()
 
-	// Start workers
+	// Start database workers
 	wg := &sync.WaitGroup{}
 	requestChan := make(chan *lib.Request, 100)
-	updater := lib.StartUpdater(wg, db, errChan, words, extensions)
+	responseChan := make(chan *lib.Response, 100)
+	updater := lib.StartUpdater(wg, db, errChan, responseChan, words, extensions)
 	poller := lib.StartPoller(wg, db, errChan, requestChan)
+
+	// Start http workers
+	workers := make([]*lib.HttpWorker, 0)
+	for i := 0; i < *workerCount; i++ {
+		worker := lib.StartHttpWorker(wg, db, requestChan, responseChan)
+		workers = append(workers, worker)
+	}
 
 	// Enqueue initial request
 	updater.EnqueueRequest(&lib.Request{*urlStr})
@@ -184,6 +192,9 @@ func main() {
 		case "q":
 			running = false
 			updater.Stop()
+			for _, worker := range workers {
+				worker.Stop()
+			}
 			poller.Stop()
 			break
 		}

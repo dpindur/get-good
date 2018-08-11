@@ -7,24 +7,25 @@ import (
 )
 
 type Updater struct {
-	running     bool
-	wg          *sync.WaitGroup
-	haltChan    chan int
-	db          *DBConn
-	errChan     chan *WorkerError
-	requestChan chan *Request
-	words       []string
-	extensions  []string
+	running      bool
+	wg           *sync.WaitGroup
+	haltChan     chan int
+	db           *DBConn
+	errChan      chan *WorkerError
+	requestChan  chan *Request
+	responseChan chan *Response
+	words        []string
+	extensions   []string
 }
 
 type Request struct {
 	Url string
 }
 
-func StartUpdater(wg *sync.WaitGroup, db *DBConn, errChan chan *WorkerError, words []string, extensions []string) *Updater {
+func StartUpdater(wg *sync.WaitGroup, db *DBConn, errChan chan *WorkerError, responseChan chan *Response, words []string, extensions []string) *Updater {
 	haltChan := make(chan int)
 	requestChan := make(chan *Request)
-	updater := &Updater{true, wg, haltChan, db, errChan, requestChan, words, extensions}
+	updater := &Updater{true, wg, haltChan, db, errChan, requestChan, responseChan, words, extensions}
 	wg.Add(1)
 	go updater.work()
 	return updater
@@ -48,6 +49,13 @@ func (updater *Updater) work() {
 		select {
 		case r := <-updater.requestChan:
 			err := updater.addURLs(r.Url)
+			if err != nil {
+				running = false
+				updater.errChan <- &WorkerError{"updater", err}
+			}
+			break
+		case r := <-updater.responseChan:
+			err := updater.handleResponse(r)
 			if err != nil {
 				running = false
 				updater.errChan <- &WorkerError{"updater", err}
@@ -90,6 +98,21 @@ func (updater *Updater) addRequestToDatabase(url string) error {
 		if err != nil {
 			return err
 		}
+	}
+
+	return nil
+}
+
+func (updater *Updater) handleResponse(res *Response) error {
+	err := updater.db.SetRequestCompleted(res.Url, res.Response.StatusCode)
+	if err != nil {
+		return err
+	}
+
+	// If response is successful, add recursive urls
+	if res.Response.StatusCode == 200 {
+		log.Printf("Successful response for %v\n", res.Url)
+		updater.addURLs(res.Url)
 	}
 
 	return nil

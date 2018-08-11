@@ -23,7 +23,7 @@ type DBConn struct {
 func (conn *DBConn) CreateSchema() error {
 	conn.mutex.Lock()
 	defer conn.mutex.Unlock()
-	_, err := conn.db.Exec("CREATE TABLE IF NOT EXISTS requests (id INTEGER PRIMARY KEY ASC, status INTEGER, uri TEXT)")
+	_, err := conn.db.Exec("CREATE TABLE IF NOT EXISTS requests (id INTEGER PRIMARY KEY ASC, status INTEGER, uri TEXT, httpStatus INTEGER)")
 	return err
 }
 
@@ -77,6 +77,16 @@ func (conn *DBConn) GetIncompleteRequests() ([]string, error) {
 
 func (conn *DBConn) SetRequestInflight(uri string) error {
 	_, err := conn.db.Exec("UPDATE requests SET status = ? WHERE uri = ?", Inflight, uri)
+	return err
+}
+
+func (conn *DBConn) SetRequestFailed(uri string) error {
+	_, err := conn.db.Exec("UPDATE requests SET status = ? WHERE uri = ?", Failed, uri)
+	return err
+}
+
+func (conn *DBConn) SetRequestCompleted(uri string, httpStatus int) error {
+	_, err := conn.db.Exec("UPDATE requests SET status = ?, httpStatus = ? WHERE uri = ?", Processed, httpStatus, uri)
 	return err
 }
 
