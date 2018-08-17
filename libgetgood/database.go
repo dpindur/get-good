@@ -55,6 +55,9 @@ func (conn *DBConn) RequestExists(uri string) (bool, error) {
 }
 
 func (conn *DBConn) GetIncompleteRequests() ([]string, error) {
+	conn.mutex.Lock()
+	defer conn.mutex.Unlock()
+
 	rows, err := conn.db.Query("SELECT uri FROM requests WHERE status = ? LIMIT 50", Unprocessed)
 	if err != nil {
 		return nil, err
@@ -76,16 +79,25 @@ func (conn *DBConn) GetIncompleteRequests() ([]string, error) {
 }
 
 func (conn *DBConn) SetRequestInflight(uri string) error {
+	conn.mutex.Lock()
+	defer conn.mutex.Unlock()
+
 	_, err := conn.db.Exec("UPDATE requests SET status = ? WHERE uri = ?", Inflight, uri)
 	return err
 }
 
 func (conn *DBConn) SetRequestFailed(uri string) error {
+	conn.mutex.Lock()
+	defer conn.mutex.Unlock()
+
 	_, err := conn.db.Exec("UPDATE requests SET status = ? WHERE uri = ?", Failed, uri)
 	return err
 }
 
 func (conn *DBConn) SetRequestCompleted(uri string, httpStatus int) error {
+	conn.mutex.Lock()
+	defer conn.mutex.Unlock()
+
 	_, err := conn.db.Exec("UPDATE requests SET status = ?, httpStatus = ? WHERE uri = ?", Processed, httpStatus, uri)
 	return err
 }
