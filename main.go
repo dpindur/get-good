@@ -4,14 +4,15 @@ import (
 	"bufio"
 	"flag"
 	"fmt"
-	lib "github.com/dpindur/get-good/libgetgood"
-	_ "github.com/mattn/go-sqlite3"
 	"log"
 	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
 	"sync"
+
+	lib "github.com/dpindur/get-good/libgetgood"
+	_ "github.com/mattn/go-sqlite3"
 )
 
 func main() {
