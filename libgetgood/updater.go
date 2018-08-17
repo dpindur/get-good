@@ -104,6 +104,11 @@ func (updater *Updater) addRequestToDatabase(url string) error {
 }
 
 func (updater *Updater) handleResponse(res *Response) error {
+	if res.Success == false {
+		err := updater.db.SetRequestFailed(res.Url)
+		return err
+	}
+
 	err := updater.db.SetRequestCompleted(res.Url, res.Response.StatusCode)
 	if err != nil {
 		return err
