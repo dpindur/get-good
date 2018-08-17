@@ -2,8 +2,10 @@ package libgetgood
 
 import (
 	"database/sql"
-	_ "github.com/mattn/go-sqlite3"
+	"log"
 	"sync"
+
+	_ "github.com/mattn/go-sqlite3"
 )
 
 type RequestStatus int
@@ -23,7 +25,7 @@ type DBConn struct {
 func (conn *DBConn) CreateSchema() error {
 	conn.mutex.Lock()
 	defer conn.mutex.Unlock()
-	_, err := conn.db.Exec("CREATE TABLE IF NOT EXISTS requests (id INTEGER PRIMARY KEY ASC, status INTEGER, uri TEXT, httpStatus INTEGER)")
+	_, err := conn.db.Exec("CREATE TABLE IF NOT EXISTS requests (id INTEGER PRIMARY KEY ASC, status INTEGER, uri TEXT, httpStatus INTEGER, UNIQUE(uri))")
 	return err
 }
 
@@ -34,24 +36,29 @@ func (conn *DBConn) Clear() error {
 	return err
 }
 
-func (conn *DBConn) AddRequest(uri string) error {
+func (conn *DBConn) AddRequests(requests []string) error {
 	conn.mutex.Lock()
 	defer conn.mutex.Unlock()
-	_, err := conn.db.Exec("INSERT INTO requests (status, uri) VALUES (?, ?)", Unprocessed, uri)
-	return err
-}
 
-func (conn *DBConn) RequestExists(uri string) (bool, error) {
-	var tmp string
-	err := conn.db.QueryRow("SELECT uri FROM requests WHERE uri = ?", uri).Scan(&tmp)
-	switch {
-	case err == sql.ErrNoRows:
-		return false, nil
-	case err != nil:
-		return false, err
-	default:
-		return true, nil
+	insertURI, err := conn.db.Prepare("INSERT OR IGNORE INTO requests (status, uri) VALUES (?, ?)")
+	if err != nil {
+		return err
 	}
+
+	tx, err := conn.db.Begin()
+	if err != nil {
+		log.Printf("Failed to begin transaction")
+		return err
+	}
+
+	for _, request := range requests {
+		_, err := tx.Stmt(insertURI).Exec(Unprocessed, request)
+		if err != nil {
+			return tx.Rollback()
+		}
+	}
+
+	return tx.Commit()
 }
 
 func (conn *DBConn) GetIncompleteRequests() ([]string, error) {
