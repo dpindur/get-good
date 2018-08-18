@@ -2,7 +2,6 @@ package libgetgood
 
 import (
 	"database/sql"
-	"log"
 	"sync"
 
 	_ "github.com/mattn/go-sqlite3"
@@ -47,7 +46,6 @@ func (conn *DBConn) AddRequests(requests []string) error {
 
 	tx, err := conn.db.Begin()
 	if err != nil {
-		log.Printf("Failed to begin transaction")
 		return err
 	}
 

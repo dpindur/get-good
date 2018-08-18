@@ -48,9 +48,7 @@ func (updater *Updater) work() {
 	for running {
 		select {
 		case r := <-updater.requestChan:
-			log.Printf("Adding URLs to databse\n")
 			err := updater.addURLs(r.Url)
-			log.Printf("URLs Added to database\n")
 			if err != nil {
 				running = false
 				updater.errChan <- &WorkerError{"updater", err}
