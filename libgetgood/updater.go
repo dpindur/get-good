@@ -74,33 +74,16 @@ func (updater *Updater) addURLs(baseURL string) error {
 		baseURL += "/"
 	}
 
+	requests := make([]string, 0)
+
 	for _, word := range updater.words {
 		for _, ext := range updater.extensions {
 			request := baseURL + word + ext
-			err := updater.addRequestToDatabase(request)
-			if err != nil {
-				return err
-			}
+			requests = append(requests, request)
 		}
 	}
 
-	return nil
-}
-
-func (updater *Updater) addRequestToDatabase(url string) error {
-	exists, err := updater.db.RequestExists(url)
-	if err != nil {
-		return err
-	}
-
-	if !exists {
-		err = updater.db.AddRequest(url)
-		if err != nil {
-			return err
-		}
-	}
-
-	return nil
+	return updater.db.AddRequests(requests)
 }
 
 func (updater *Updater) handleResponse(res *Response) error {

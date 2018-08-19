@@ -12,3 +12,4 @@ A list of features which would be nice to implement
 * Save successful responses to the database
 * Ability to print status to command line
 * Add ability to connect to alternate database
+* Track number of requests (completed) every second
