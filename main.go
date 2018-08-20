@@ -4,7 +4,6 @@ import (
 	"bufio"
 	"flag"
 	"fmt"
-	"log"
 	"net/url"
 	"os"
 	"os/signal"
@@ -13,13 +12,17 @@ import (
 	"sync"
 
 	lib "github.com/dpindur/get-good/libgetgood"
+	. "github.com/dpindur/get-good/logger"
 	_ "github.com/mattn/go-sqlite3"
+	logrus "github.com/sirupsen/logrus"
 )
 
 func main() {
 	workerCount := flag.Int("workers", 5, "number of worker threads")
 	clearDB := flag.Bool("clear-db", false, "clear the database before starting")
 	dbFile := flag.String("db", "bust.db", "database file to store results")
+	logFileStr := flag.String("log-file", "bust.log", "log file to output progress to")
+	logLevelStr := flag.String("log-level", "info", "what level of logs and up should be logged (debug, info, warn, error, fatal, panic)")
 	urlStr := flag.String("url", "", "url to perform directory bust against")
 	wordsFile := flag.String("wordlist", "", "wordlist file to use")
 	extensionsFlag := flag.String("extensions", "html,php", "comma separated list of extensions to append")
@@ -82,16 +85,33 @@ func main() {
 		}
 	}
 
+	// Logging
+	logLevel, err := logrus.ParseLevel(strings.ToLower(*logLevelStr))
+	if err != nil {
+		fmt.Printf("not a valid log level %v\n", *logLevelStr)
+		flagsInvalid = true
+	}
+
+	logFile, err := os.OpenFile(*logFileStr, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0660)
+	if err != nil {
+		fmt.Printf("error opening logfile %v\n", *logFileStr)
+		flagsInvalid = true
+	}
+
 	if flagsInvalid {
 		os.Exit(1)
 	}
 
-	log.Printf("Starting get-good directory bust of %v\n", *urlStr)
-	log.Printf("Worker threads: %v\n", *workerCount)
-	log.Printf("Database file: %v\n", dbFilePath)
-	log.Printf("Wordlist file: %v\n", wordsFilePath)
-	log.Printf("Extensions: (blank)%v\n", strings.Join(extensions, ", "))
-	log.Printf("Resuming existing directory bust: %v\n", !*clearDB)
+	ConfigureLogger(logLevel, logFile)
+
+	Logger.Infof("Starting get-good directory bust of %v", *urlStr)
+	Logger.Infof("Worker threads: %v", *workerCount)
+	Logger.Infof("Database file: %v", dbFilePath)
+	Logger.Infof("Wordlist file: %v", wordsFilePath)
+	Logger.Infof("Extensions: (blank)%v", strings.Join(extensions, ", "))
+	Logger.Infof("Resuming existing directory bust: %v", !*clearDB)
+	Logger.Infof("Logging to file: %v", *logFileStr)
+	Logger.Infof("Configured logging level: %v", *logLevelStr)
 
 	db, err := lib.OpenDatabaseConnection(dbFilePath)
 	if err != nil {
