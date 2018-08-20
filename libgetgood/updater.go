@@ -1,9 +1,10 @@
 package libgetgood
 
 import (
-	"log"
 	"strings"
 	"sync"
+
+	. "github.com/dpindur/get-good/logger"
 )
 
 type Updater struct {
@@ -36,14 +37,14 @@ func (updater *Updater) EnqueueRequest(req *Request) {
 }
 
 func (updater *Updater) Stop() {
-	log.Printf("Sending database updater stop signal\n")
+	Logger.Debugf("Sending database updater stop signal")
 	updater.haltChan <- 0
 }
 
 func (updater *Updater) work() {
 	defer updater.wg.Done()
 
-	log.Printf("Starting database updater\n")
+	Logger.Debugf("Starting database updater")
 	running := true
 	for running {
 		select {
@@ -66,7 +67,7 @@ func (updater *Updater) work() {
 			break
 		}
 	}
-	log.Printf("Database updater stopped\n")
+	Logger.Debugf("Database updater stopped")
 }
 
 func (updater *Updater) addURLs(baseURL string) error {
@@ -99,7 +100,7 @@ func (updater *Updater) handleResponse(res *Response) error {
 
 	// If response is successful, add recursive urls
 	if res.Response.StatusCode == 200 {
-		log.Printf("Successful response for %v\n", res.Url)
+		Logger.Infof("Successful response for %v", res.Url)
 		updater.addURLs(res.Url)
 	}
 

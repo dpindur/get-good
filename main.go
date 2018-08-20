@@ -115,32 +115,32 @@ func main() {
 
 	db, err := lib.OpenDatabaseConnection(dbFilePath)
 	if err != nil {
-		fmt.Println("error opening database connection")
-		fmt.Printf("%v\n", err)
+		Logger.Errorf("error opening database connection")
+		Logger.Errorf("%v", err)
 		os.Exit(1)
 	}
 
 	defer func() {
 		err = db.CloseDatabaseConnection()
 		if err != nil {
-			fmt.Printf("error closing database connection")
-			fmt.Printf("%v\n", err)
+			Logger.Errorf("error closing database connection")
+			Logger.Errorf("%v", err)
 			os.Exit(1)
 		}
 	}()
 
 	err = db.CreateSchema()
 	if err != nil {
-		fmt.Println("error creating database schema")
-		fmt.Printf("%v\n", err)
+		Logger.Errorf("error creating database schema")
+		Logger.Errorf("%v", err)
 		os.Exit(1)
 	}
 
 	if *clearDB {
 		err = db.Clear()
 		if err != nil {
-			fmt.Println("error clearing database")
-			fmt.Printf("%v\n", err)
+			Logger.Errorf("error clearing database")
+			Logger.Errorf("%v", err)
 			os.Exit(1)
 		}
 	}
@@ -149,8 +149,8 @@ func main() {
 	words := make([]string, 0)
 	wordlist, err := os.Open(wordsFilePath)
 	if err != nil {
-		fmt.Println("error opening wordlist file")
-		fmt.Printf("%v\n", err)
+		Logger.Errorf("error opening wordlist file")
+		Logger.Errorf("%v", err)
 		os.Exit(1)
 	}
 	scanner := bufio.NewScanner(wordlist)
@@ -160,8 +160,8 @@ func main() {
 	}
 	err = scanner.Err()
 	if err != nil {
-		fmt.Println("error reading wordlist file")
-		fmt.Printf("%v\n", err)
+		Logger.Errorf("error reading wordlist file")
+		Logger.Errorf("%v", err)
 		os.Exit(1)
 	}
 
@@ -170,9 +170,8 @@ func main() {
 	var workerErr *lib.WorkerError
 	go func() {
 		workerErr = <-errChan
-		fmt.Printf("error in worker routine: %v\n", workerErr.Worker)
-		fmt.Printf("%v\n", workerErr.Error)
-		fmt.Printf("enter any key to continue\n")
+		Logger.Errorf("error in worker routine: %v", workerErr.Worker)
+		Logger.Errorf("%v", workerErr.Error)
 	}()
 
 	// Start database workers
@@ -197,7 +196,7 @@ func main() {
 	cleanupChan := make(chan struct{})
 	go func() {
 		<-signalChan
-		fmt.Printf("received an interrupt, stopping...\n")
+		Logger.Infof("received an interrupt, stopping...")
 		close(cleanupChan)
 	}()
 	<-cleanupChan
@@ -211,6 +210,6 @@ func main() {
 	if workerErr == nil {
 		wg.Wait()
 	} else {
-		fmt.Printf("terminating without properly halting routines... sorry\n")
+		Logger.Warnf("terminating without properly halting routines... sorry")
 	}
 }

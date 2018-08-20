@@ -1,9 +1,10 @@
 package libgetgood
 
 import (
-	"log"
 	"sync"
 	"time"
+
+	. "github.com/dpindur/get-good/logger"
 )
 
 type Poller struct {
@@ -24,14 +25,14 @@ func StartPoller(wg *sync.WaitGroup, db *DBConn, errChan chan *WorkerError, requ
 }
 
 func (poller *Poller) Stop() {
-	log.Printf("Sending database poller stop signal\n")
+	Logger.Debugf("Sending database poller stop signal")
 	poller.haltChan <- 0
 }
 
 func (poller *Poller) work() {
 	defer poller.wg.Done()
 
-	log.Printf("Starting database poller\n")
+	Logger.Debugf("Starting database poller")
 	running := true
 	for running {
 		select {
@@ -48,11 +49,11 @@ func (poller *Poller) work() {
 			break
 		}
 	}
-	log.Printf("Database poller stopped\n")
+	Logger.Debugf("Database poller stopped")
 }
 
 func (poller *Poller) pollDatabase() error {
-	log.Printf("Polling")
+	Logger.Debugf("Polling")
 	requests, err := poller.db.GetIncompleteRequests()
 	if err != nil {
 		return err
@@ -71,7 +72,7 @@ func (poller *Poller) pollDatabase() error {
 			}
 			break
 		default:
-			log.Printf("Request queue full, pausing poller for five seconds...")
+			Logger.Infof("Request queue full, pausing poller for five seconds...")
 			time.Sleep(5 * time.Second)
 			return nil
 		}

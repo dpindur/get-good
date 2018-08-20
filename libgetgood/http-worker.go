@@ -1,9 +1,10 @@
 package libgetgood
 
 import (
-	"log"
 	"net/http"
 	"sync"
+
+	. "github.com/dpindur/get-good/logger"
 )
 
 type Response struct {
@@ -34,14 +35,14 @@ func StartHttpWorker(wg *sync.WaitGroup, db *DBConn, requestChan chan *Request, 
 }
 
 func (worker *HttpWorker) Stop() {
-	log.Printf("Sending http worker stop signal\n")
+	Logger.Debugf("Sending http worker stop signal")
 	worker.haltChan <- 0
 }
 
 func (worker *HttpWorker) work() {
 	defer worker.wg.Done()
 
-	log.Printf("Starting http worker\n")
+	Logger.Debugf("Starting http worker")
 	running := true
 	for running {
 		select {
@@ -55,16 +56,16 @@ func (worker *HttpWorker) work() {
 			break
 		}
 	}
-	log.Printf("Http worker stopped\n")
+	Logger.Debugf("Http worker stopped")
 }
 
 func (worker *HttpWorker) processRequest(request *Request) {
-	log.Printf("Processing request %v\n", request.Url)
+	Logger.Debugf("Http worker requesting %v", request.Url)
 	res, err := worker.client.Get(request.Url)
 	success := false
 	if err != nil {
-		log.Printf("Error requesting %v\n", request.Url)
-		log.Printf("%v\n", err)
+		Logger.Warnf("Error requesting %v", request.Url)
+		Logger.Warnf("%v", err)
 	} else {
 		success = true
 	}
