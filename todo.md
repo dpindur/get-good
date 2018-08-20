@@ -13,3 +13,4 @@ A list of features which would be nice to implement
 * Ability to print status to command line
 * Add ability to connect to alternate database
 * Track number of requests (completed) every second
+* More graceful exit if http workers timeout (can end up waiting a while for halt signal to be handled, maybe just reduce the timeout?)
