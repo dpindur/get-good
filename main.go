@@ -7,6 +7,7 @@ import (
 	"log"
 	"net/url"
 	"os"
+	"os/signal"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -171,35 +172,21 @@ func main() {
 	// Enqueue initial request
 	updater.EnqueueRequest(&lib.Request{*urlStr})
 
-	reader := bufio.NewReader(os.Stdin)
-	running := true
-	for running {
-		cmd, err := reader.ReadString('\n')
-		if err != nil {
-			fmt.Printf("error reading from stdin: %v\n", err)
-			running = false
-			break
-		}
+	signalChan := make(chan os.Signal, 1)
+	signal.Notify(signalChan, os.Interrupt)
+	cleanupChan := make(chan struct{})
+	go func() {
+		<-signalChan
+		fmt.Printf("received an interrupt, stopping...\n")
+		close(cleanupChan)
+	}()
+	<-cleanupChan
 
-		// Don't bother processing commands if a worker has failed and
-		// cannot be recovered
-		if workerErr != nil {
-			running = false
-			break
-		}
-
-		cmd = strings.TrimSuffix(cmd, "\n")
-		switch cmd {
-		case "q":
-			running = false
-			updater.Stop()
-			for _, worker := range workers {
-				worker.Stop()
-			}
-			poller.Stop()
-			break
-		}
+	updater.Stop()
+	for _, worker := range workers {
+		worker.Stop()
 	}
+	poller.Stop()
 
 	if workerErr == nil {
 		wg.Wait()
