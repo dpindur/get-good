@@ -12,13 +12,14 @@ type Poller struct {
 	wg          *sync.WaitGroup
 	haltChan    chan int
 	db          *DBConn
+	batchSize   int
 	errChan     chan *WorkerError
 	requestChan chan *Request
 }
 
-func StartPoller(wg *sync.WaitGroup, db *DBConn, errChan chan *WorkerError, requestChan chan *Request) *Poller {
+func StartPoller(wg *sync.WaitGroup, db *DBConn, batchSize int, errChan chan *WorkerError, requestChan chan *Request) *Poller {
 	haltChan := make(chan int)
-	poller := &Poller{true, wg, haltChan, db, errChan, requestChan}
+	poller := &Poller{true, wg, haltChan, db, batchSize, errChan, requestChan}
 	wg.Add(1)
 	go poller.work()
 	return poller
@@ -54,22 +55,26 @@ func (poller *Poller) work() {
 
 func (poller *Poller) pollDatabase() error {
 	Logger.Debugf("Polling")
-	requests, err := poller.db.GetIncompleteRequests()
+	requests, err := poller.db.GetIncompleteRequests(poller.batchSize)
 	if err != nil {
 		return err
 	}
+
+	Logger.Debugf("Setting requests inflight")
+	err = poller.db.SetRequestsInflight(requests)
+	if err != nil {
+		return err
+	}
+	Logger.Debugf("Requests set inflight")
 
 	// Adding a request to the queue will block if the queue is full
 	// in this case we pause the poller for a bit and then return.
 	// Any incomplete requests we were looking at will just be
 	// picked up during the next poll
+	Logger.Debugf("Placing requests on queue")
 	for _, url := range requests {
 		select {
 		case poller.requestChan <- &Request{url}:
-			err := poller.db.SetRequestInflight(url)
-			if err != nil {
-				return err
-			}
 			break
 		default:
 			Logger.Infof("Request queue full, pausing poller for five seconds...")
@@ -77,6 +82,7 @@ func (poller *Poller) pollDatabase() error {
 			return nil
 		}
 	}
+	Logger.Debugf("Requests placed on queue")
 
 	return nil
 }

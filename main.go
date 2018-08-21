@@ -26,6 +26,8 @@ func main() {
 	urlStr := flag.String("url", "", "url to perform directory bust against")
 	wordsFile := flag.String("wordlist", "", "wordlist file to use")
 	extensionsFlag := flag.String("extensions", "html,php", "comma separated list of extensions to append")
+	queueSize := flag.Int("queue-size", 5000, "number of urls that can sit in the queue at one time")
+	pollerBatchSize := flag.Int("poller-batch-size", 5000, "number of urls the poller can pull from the database in one go")
 
 	flag.Parse()
 	flagsInvalid := false
@@ -98,6 +100,17 @@ func main() {
 		flagsInvalid = true
 	}
 
+	// Performance modifiers
+	if *queueSize < 1 {
+		fmt.Println("please specify 1 or more for queue size")
+		flagsInvalid = true
+	}
+
+	if *pollerBatchSize < 1 {
+		fmt.Println("please specify 1 or more for poller batch size")
+		flagsInvalid = true
+	}
+
 	if flagsInvalid {
 		os.Exit(1)
 	}
@@ -112,6 +125,8 @@ func main() {
 	Logger.Infof("Resuming existing directory bust: %v", !*clearDB)
 	Logger.Infof("Logging to file: %v", *logFileStr)
 	Logger.Infof("Configured logging level: %v", *logLevelStr)
+	Logger.Infof("Queue size: %v", *queueSize)
+	Logger.Infof("Poller batch size: %v", *pollerBatchSize)
 
 	db, err := lib.OpenDatabaseConnection(dbFilePath)
 	if err != nil {
@@ -176,10 +191,10 @@ func main() {
 
 	// Start database workers
 	wg := &sync.WaitGroup{}
-	requestChan := make(chan *lib.Request, 100)
-	responseChan := make(chan *lib.Response, 100)
+	requestChan := make(chan *lib.Request, *queueSize)
+	responseChan := make(chan *lib.Response, *queueSize)
 	updater := lib.StartUpdater(wg, db, errChan, responseChan, words, extensions)
-	poller := lib.StartPoller(wg, db, errChan, requestChan)
+	poller := lib.StartPoller(wg, db, *pollerBatchSize, errChan, requestChan)
 
 	// Start http workers
 	workers := make([]*lib.HttpWorker, 0)
@@ -201,14 +216,15 @@ func main() {
 	}()
 	<-cleanupChan
 
-	updater.Stop()
+	poller.Stop()
 	for _, worker := range workers {
 		worker.Stop()
 	}
-	poller.Stop()
+	updater.Stop()
 
 	if workerErr == nil {
 		wg.Wait()
+		lib.CleanupClient()
 	} else {
 		Logger.Warnf("terminating without properly halting routines... sorry")
 	}
