@@ -2,3 +2,4 @@ get-good
 *.db
 .vscode
 debug
+*.log
