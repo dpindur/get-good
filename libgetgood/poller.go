@@ -79,7 +79,6 @@ func (poller *Poller) pollDatabase() error {
 		default:
 			Logger.Infof("Request queue full, pausing poller for five seconds...")
 			time.Sleep(5 * time.Second)
-			return nil
 		}
 	}
 	Logger.Debugf("Requests placed on queue")

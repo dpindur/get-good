@@ -130,7 +130,7 @@ func main() {
 
 	db, err := lib.OpenDatabaseConnection(dbFilePath)
 	if err != nil {
-		Logger.Errorf("error opening database connection")
+		Logger.Errorf("Error opening database connection")
 		Logger.Errorf("%v", err)
 		os.Exit(1)
 	}
@@ -138,7 +138,7 @@ func main() {
 	defer func() {
 		err = db.CloseDatabaseConnection()
 		if err != nil {
-			Logger.Errorf("error closing database connection")
+			Logger.Errorf("Error closing database connection")
 			Logger.Errorf("%v", err)
 			os.Exit(1)
 		}
@@ -146,7 +146,7 @@ func main() {
 
 	err = db.CreateSchema()
 	if err != nil {
-		Logger.Errorf("error creating database schema")
+		Logger.Errorf("Error creating database schema")
 		Logger.Errorf("%v", err)
 		os.Exit(1)
 	}
@@ -154,7 +154,7 @@ func main() {
 	if *clearDB {
 		err = db.Clear()
 		if err != nil {
-			Logger.Errorf("error clearing database")
+			Logger.Errorf("Error clearing database")
 			Logger.Errorf("%v", err)
 			os.Exit(1)
 		}
@@ -164,7 +164,7 @@ func main() {
 	words := make([]string, 0)
 	wordlist, err := os.Open(wordsFilePath)
 	if err != nil {
-		Logger.Errorf("error opening wordlist file")
+		Logger.Errorf("Error opening wordlist file")
 		Logger.Errorf("%v", err)
 		os.Exit(1)
 	}
@@ -175,7 +175,7 @@ func main() {
 	}
 	err = scanner.Err()
 	if err != nil {
-		Logger.Errorf("error reading wordlist file")
+		Logger.Errorf("Error reading wordlist file")
 		Logger.Errorf("%v", err)
 		os.Exit(1)
 	}
@@ -185,12 +185,13 @@ func main() {
 	var workerErr *lib.WorkerError
 	go func() {
 		workerErr = <-errChan
-		Logger.Errorf("error in worker routine: %v", workerErr.Worker)
+		Logger.Errorf("Error in worker routine: %v", workerErr.Worker)
 		Logger.Errorf("%v", workerErr.Error)
 	}()
 
 	// Start database workers
 	wg := &sync.WaitGroup{}
+	httpWg := &sync.WaitGroup{}
 	requestChan := make(chan *lib.Request, *queueSize)
 	responseChan := make(chan *lib.Response, *queueSize)
 	updater := lib.StartUpdater(wg, db, errChan, responseChan, words, extensions)
@@ -199,7 +200,7 @@ func main() {
 	// Start http workers
 	workers := make([]*lib.HttpWorker, 0)
 	for i := 0; i < *workerCount; i++ {
-		worker := lib.StartHttpWorker(wg, db, requestChan, responseChan)
+		worker := lib.StartHttpWorker(httpWg, db, requestChan, responseChan)
 		workers = append(workers, worker)
 	}
 
@@ -211,7 +212,7 @@ func main() {
 	cleanupChan := make(chan struct{})
 	go func() {
 		<-signalChan
-		Logger.Infof("received an interrupt, stopping...")
+		Logger.Infof("Received an interrupt, stopping...")
 		close(cleanupChan)
 	}()
 	<-cleanupChan
@@ -220,12 +221,16 @@ func main() {
 	for _, worker := range workers {
 		worker.Stop()
 	}
+
+	Logger.Infof("Waiting for http workers to stop...")
+	httpWg.Wait()
 	updater.Stop()
 
 	if workerErr == nil {
+		Logger.Infof("Waiting for updater and poller to stop...")
 		wg.Wait()
 		lib.CleanupClient()
 	} else {
-		Logger.Warnf("terminating without properly halting routines... sorry")
+		Logger.Warnf("Terminating without properly halting routines... sorry")
 	}
 }
