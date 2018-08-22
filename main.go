@@ -160,6 +160,20 @@ func main() {
 		}
 	}
 
+	err = db.ResetInflightRequests()
+	if err != nil {
+		Logger.Errorf("Error resetting inflight requests")
+		Logger.Errorf("%v", err)
+		os.Exit(1)
+	}
+
+	err = db.ResetFailedRequests()
+	if err != nil {
+		Logger.Errorf("Error resetting failed requests")
+		Logger.Errorf("%v", err)
+		os.Exit(1)
+	}
+
 	// Process the wordlist
 	words := make([]string, 0)
 	wordlist, err := os.Open(wordsFilePath)
