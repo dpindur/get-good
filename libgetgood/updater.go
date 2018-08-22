@@ -93,6 +93,7 @@ func (updater *Updater) handleResponse(res *Response) error {
 		return err
 	}
 
+	Logger.Debugf("Updating request %v", res.Url)
 	err := updater.db.SetRequestCompleted(res.Url, res.Response.StatusCode)
 	if err != nil {
 		return err

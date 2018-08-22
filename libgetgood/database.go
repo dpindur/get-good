@@ -59,11 +59,11 @@ func (conn *DBConn) AddRequests(requests []string) error {
 	return tx.Commit()
 }
 
-func (conn *DBConn) GetIncompleteRequests() ([]string, error) {
+func (conn *DBConn) GetIncompleteRequests(batchSize int) ([]string, error) {
 	conn.mutex.Lock()
 	defer conn.mutex.Unlock()
 
-	rows, err := conn.db.Query("SELECT uri FROM requests WHERE status = ? LIMIT 50", Unprocessed)
+	rows, err := conn.db.Query("SELECT uri FROM requests WHERE status = ? LIMIT ?", Unprocessed, batchSize)
 	if err != nil {
 		return nil, err
 	}
@@ -83,12 +83,28 @@ func (conn *DBConn) GetIncompleteRequests() ([]string, error) {
 	return requests, nil
 }
 
-func (conn *DBConn) SetRequestInflight(uri string) error {
+func (conn *DBConn) SetRequestsInflight(requests []string) error {
 	conn.mutex.Lock()
 	defer conn.mutex.Unlock()
 
-	_, err := conn.db.Exec("UPDATE requests SET status = ? WHERE uri = ?", Inflight, uri)
-	return err
+	updateURI, err := conn.db.Prepare("UPDATE requests SET status = ? WHERE uri = ?")
+	if err != nil {
+		return err
+	}
+
+	tx, err := conn.db.Begin()
+	if err != nil {
+		return err
+	}
+
+	for _, request := range requests {
+		_, err := tx.Stmt(updateURI).Exec(Inflight, request)
+		if err != nil {
+			return tx.Rollback()
+		}
+	}
+
+	return tx.Commit()
 }
 
 func (conn *DBConn) SetRequestFailed(uri string) error {
