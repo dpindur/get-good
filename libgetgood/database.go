@@ -83,6 +83,19 @@ func (conn *DBConn) GetIncompleteRequests(batchSize int) ([]string, error) {
 	return requests, nil
 }
 
+func (conn *DBConn) GetRemainingRequestCount() (int, error) {
+	conn.mutex.Lock()
+	defer conn.mutex.Unlock()
+
+	var remaining int
+	err := conn.db.QueryRow("SELECT COUNT(*) FROM requests WHERE status = ? OR status = ?", Unprocessed, Inflight).Scan(&remaining)
+	if err != nil {
+		return 0, err
+	}
+
+	return remaining, nil
+}
+
 func (conn *DBConn) SetRequestsInflight(requests []string) error {
 	conn.mutex.Lock()
 	defer conn.mutex.Unlock()

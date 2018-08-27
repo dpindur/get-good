@@ -208,8 +208,10 @@ func main() {
 	httpWg := &sync.WaitGroup{}
 	requestChan := make(chan *lib.Request, *queueSize)
 	responseChan := make(chan *lib.Response, *queueSize)
+	bustCompleteChan := make(chan int, 1)
 	updater := lib.StartUpdater(wg, db, errChan, responseChan, words, extensions)
 	poller := lib.StartPoller(wg, db, *pollerBatchSize, errChan, requestChan)
+	monitor := lib.StartMonitor(wg, db, errChan, bustCompleteChan)
 
 	// Start http workers
 	workers := make([]*lib.HttpWorker, 0)
@@ -225,8 +227,14 @@ func main() {
 	signal.Notify(signalChan, os.Interrupt)
 	cleanupChan := make(chan struct{})
 	go func() {
-		<-signalChan
-		Logger.Infof("Received an interrupt, stopping...")
+		select {
+		case <-bustCompleteChan:
+			Logger.Infof("Directory bust complete, stopping...")
+			break
+		case <-signalChan:
+			Logger.Infof("Received an interrupt, stopping...")
+			break
+		}
 		close(cleanupChan)
 	}()
 	<-cleanupChan
@@ -238,10 +246,11 @@ func main() {
 
 	Logger.Infof("Waiting for http workers to stop...")
 	httpWg.Wait()
+	monitor.Stop()
 	updater.Stop()
 
 	if workerErr == nil {
-		Logger.Infof("Waiting for updater and poller to stop...")
+		Logger.Infof("Waiting for updater, poller and monitor to stop...")
 		wg.Wait()
 		lib.CleanupClient()
 	} else {
