@@ -123,6 +123,22 @@ func (conn *DBConn) SetRequestCompleted(uri string, httpStatus int) error {
 	return err
 }
 
+func (conn *DBConn) ResetInflightRequests() error {
+	conn.mutex.Lock()
+	defer conn.mutex.Unlock()
+
+	_, err := conn.db.Exec("UPDATE requests SET status = ? WHERE status = ?", Unprocessed, Inflight)
+	return err
+}
+
+func (conn *DBConn) ResetFailedRequests() error {
+	conn.mutex.Lock()
+	defer conn.mutex.Unlock()
+
+	_, err := conn.db.Exec("UPDATE requests SET status = ? WHERE status = ?", Unprocessed, Failed)
+	return err
+}
+
 func OpenDatabaseConnection(filename string) (*DBConn, error) {
 	db, err := sql.Open("sqlite3", filename)
 	mutex := &sync.Mutex{}
