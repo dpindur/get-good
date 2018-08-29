@@ -14,11 +14,13 @@ type Monitor struct {
 	db               *DBConn
 	errChan          chan *WorkerError
 	bustCompleteChan chan int
+	requestsCounted  int
+	timeChecked      time.Time
 }
 
 func StartMonitor(wg *sync.WaitGroup, db *DBConn, errChan chan *WorkerError, bustCompleteChan chan int) *Monitor {
 	haltChan := make(chan int)
-	monitor := &Monitor{true, wg, haltChan, db, errChan, bustCompleteChan}
+	monitor := &Monitor{true, wg, haltChan, db, errChan, bustCompleteChan, 0, time.Now()}
 	wg.Add(1)
 	go monitor.work()
 	return monitor
@@ -41,6 +43,7 @@ func (monitor *Monitor) work() {
 			break
 		default:
 			time.Sleep(3 * time.Second)
+			monitor.logRequestsPerSecond()
 			err := monitor.checkRemainingRequests()
 			if err != nil {
 				running = false
@@ -50,6 +53,16 @@ func (monitor *Monitor) work() {
 		}
 	}
 	Logger.Debugf("Monitor stopped")
+}
+
+func (monitor *Monitor) logRequestsPerSecond() {
+
+	requestDiff := TotalRequestCount - monitor.requestsCounted
+	duration := time.Since(monitor.timeChecked).Seconds()
+
+	monitor.timeChecked = time.Now()
+	monitor.requestsCounted += requestDiff
+	Logger.Infof("Requests per second: %v", requestDiff/int(duration))
 }
 
 func (monitor *Monitor) checkRemainingRequests() error {

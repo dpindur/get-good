@@ -9,6 +9,8 @@ import (
 	. "github.com/dpindur/get-good/logger"
 )
 
+var TotalRequestCount int
+
 type Response struct {
 	Success  bool
 	Url      string
@@ -73,6 +75,7 @@ func (worker *HttpWorker) processRequest(request *Request) {
 		ioutil.ReadAll(res.Body)
 		res.Body.Close()
 	}
+	TotalRequestCount++
 	worker.responseChan <- &Response{success, request.Url, res}
 }
 
