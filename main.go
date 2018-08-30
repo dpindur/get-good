@@ -34,7 +34,7 @@ func main() {
 
 	// Workers
 	if *workerCount < 1 {
-		fmt.Println("please specify 1 or more worker threads")
+		fmt.Printf("please specify 1 or more worker threads\n")
 		flagsInvalid = true
 	}
 
@@ -44,14 +44,14 @@ func main() {
 	}
 	dbFilePath, err := filepath.Abs(*dbFile)
 	if err != nil {
-		fmt.Println("error resolving path %v\n", *dbFile)
+		fmt.Printf("error resolving path %v\n", *dbFile)
 		flagsInvalid = true
 	}
 
 	// Url
 	urlProvided := true
 	if *urlStr == "" {
-		fmt.Println("please provide a URL to perform the directory bust against")
+		fmt.Printf("please provide a URL to perform the directory bust against\n")
 		flagsInvalid = true
 		urlProvided = false
 	}
@@ -60,18 +60,18 @@ func main() {
 	}
 	_, err = url.ParseRequestURI(*urlStr)
 	if err != nil && urlProvided {
-		fmt.Println("error parsing url, please ensure it includes the protocol for example http://google.com/")
+		fmt.Printf("error parsing url, please ensure it includes the protocol for example http://google.com/\n")
 		flagsInvalid = true
 	}
 
 	// Wordlist
 	if *wordsFile == "" {
-		fmt.Println("please provide a wordlist file")
+		fmt.Printf("please provide a wordlist file\n")
 		flagsInvalid = true
 	}
 	wordsFilePath, err := filepath.Abs(*wordsFile)
 	if err != nil {
-		fmt.Println("error resolving path %v\n", *wordsFile)
+		fmt.Printf("error resolving path %v\n", *wordsFile)
 		flagsInvalid = true
 	}
 
@@ -102,12 +102,12 @@ func main() {
 
 	// Performance modifiers
 	if *queueSize < 1 {
-		fmt.Println("please specify 1 or more for queue size")
+		fmt.Printf("please specify 1 or more for queue size\n")
 		flagsInvalid = true
 	}
 
 	if *pollerBatchSize < 1 {
-		fmt.Println("please specify 1 or more for poller batch size")
+		fmt.Printf("please specify 1 or more for poller batch size\n")
 		flagsInvalid = true
 	}
 
