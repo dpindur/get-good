@@ -96,6 +96,45 @@ func (conn *DBConn) GetRemainingRequestCount() (int, error) {
 	return remaining, nil
 }
 
+func (conn *DBConn) GetTotalRequestCount() (int, error) {
+	conn.mutex.Lock()
+	defer conn.mutex.Unlock()
+
+	var total int
+	err := conn.db.QueryRow("SELECT COUNT(*) FROM requests").Scan(&total)
+	if err != nil {
+		return 0, err
+	}
+
+	return total, nil
+}
+
+func (conn *DBConn) GetCompletedRequestCount() (int, error) {
+	conn.mutex.Lock()
+	defer conn.mutex.Unlock()
+
+	var completed int
+	err := conn.db.QueryRow("SELECT COUNT(*) FROM requests WHERE status == ?", Processed).Scan(&completed)
+	if err != nil {
+		return 0, err
+	}
+
+	return completed, nil
+}
+
+func (conn *DBConn) GetFailedRequestCount() (int, error) {
+	conn.mutex.Lock()
+	defer conn.mutex.Unlock()
+
+	var failed int
+	err := conn.db.QueryRow("SELECT COUNT(*) FROM requests WHERE status == ?", Failed).Scan(&failed)
+	if err != nil {
+		return 0, err
+	}
+
+	return failed, nil
+}
+
 func (conn *DBConn) SetRequestsInflight(requests []string) error {
 	conn.mutex.Lock()
 	defer conn.mutex.Unlock()
