@@ -2,7 +2,6 @@
 
 A list of features which would be nice to implement:
 
-* Make http.Client.Timeout configurable
 * Refactor http worker to handle response channel being blocked
 * Add backoff if multiple requests fail
 * Configurable request delays and related timers
@@ -19,3 +18,4 @@ A list of features which would be nice to implement:
 * Add comments for exported functions/variables
 * Add detection for soft 404 (i.e. server responding with 200 for everthing)
 * Detect false positives when recursively scanning files. (i.e. requesting url/info.php will produce same result as requesting url/info.php/{anything here})
+* Refactor parsing of flags to use a config struct
