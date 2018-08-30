@@ -28,8 +28,8 @@ type HttpWorker struct {
 
 var client *http.Client
 
-func StartHttpWorker(wg *sync.WaitGroup, db *DBConn, requestChan chan *Request, responseChan chan *Response) *HttpWorker {
-	ConfigureClient()
+func StartHttpWorker(wg *sync.WaitGroup, db *DBConn, requestChan chan *Request, responseChan chan *Response, timeOut int) *HttpWorker {
+	ConfigureClient(timeOut)
 	haltChan := make(chan int, 1)
 	httpWorker := &HttpWorker{true, wg, haltChan, db, requestChan, responseChan}
 	wg.Add(1)
@@ -79,7 +79,7 @@ func (worker *HttpWorker) processRequest(request *Request) {
 	worker.responseChan <- &Response{success, request.Url, res}
 }
 
-func ConfigureClient() {
+func ConfigureClient(timeout int) {
 	if client == nil {
 		client = &http.Client{
 			CheckRedirect: func(req *http.Request, via []*http.Request) error { return http.ErrUseLastResponse },
@@ -87,7 +87,7 @@ func ConfigureClient() {
 				MaxIdleConns:        200,
 				MaxIdleConnsPerHost: 200,
 			},
-			Timeout: time.Duration(5) * time.Second,
+			Timeout: time.Duration(timeout) * time.Second,
 		}
 	}
 }

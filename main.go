@@ -28,6 +28,7 @@ func main() {
 	extensionsFlag := flag.String("extensions", "html,php", "comma separated list of extensions to append")
 	queueSize := flag.Int("queue-size", 5000, "number of urls that can sit in the queue at one time")
 	pollerBatchSize := flag.Int("poller-batch-size", 5000, "number of urls the poller can pull from the database in one go")
+	timeOut := flag.Int("time-out", 10, "HTTP timeout in seconds")
 
 	flag.Parse()
 	flagsInvalid := false
@@ -216,7 +217,7 @@ func main() {
 	// Start http workers
 	workers := make([]*lib.HttpWorker, 0)
 	for i := 0; i < *workerCount; i++ {
-		worker := lib.StartHttpWorker(httpWg, db, requestChan, responseChan)
+		worker := lib.StartHttpWorker(httpWg, db, requestChan, responseChan, *timeOut)
 		workers = append(workers, worker)
 	}
 
