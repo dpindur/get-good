@@ -28,8 +28,8 @@ type HttpWorker struct {
 
 var client *http.Client
 
-func StartHttpWorker(wg *sync.WaitGroup, db *DBConn, requestChan chan *Request, responseChan chan *Response, timeOut int) *HttpWorker {
-	ConfigureClient(timeOut)
+func StartHttpWorker(wg *sync.WaitGroup, db *DBConn, requestChan chan *Request, responseChan chan *Response, timeout int) *HttpWorker {
+	ConfigureClient(timeout)
 	haltChan := make(chan int, 1)
 	httpWorker := &HttpWorker{true, wg, haltChan, db, requestChan, responseChan}
 	wg.Add(1)
