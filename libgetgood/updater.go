@@ -101,7 +101,7 @@ func (updater *Updater) handleResponse(res *Response) error {
 
 	// If response is successful, add recursive urls
 	if res.Response.StatusCode == 200 {
-		Logger.Infof("Successful response for %v", res.Url)
+		Logger.Infof("[Successful response for %v](fg-green)", res.Url)
 		updater.addURLs(res.Url)
 	}
 

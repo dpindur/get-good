@@ -1,6 +1,7 @@
 package logger
 
 import (
+	"io/ioutil"
 	"os"
 
 	logrus "github.com/sirupsen/logrus"
@@ -8,15 +9,12 @@ import (
 
 var Logger = logrus.New()
 
-func ConfigureLogger(level logrus.Level, file *os.File) {
+func ConfigureLogger(level logrus.Level, terminal Terminal, file *os.File) {
 	timestampFormat := "2006/01/15 15:04:05"
-	formatter := &logrus.TextFormatter{
-		FullTimestamp:   true,
-		TimestampFormat: timestampFormat,
-	}
-	hook := NewFileHook(file, timestampFormat, level)
-	Logger.Formatter = formatter
+	fileHook := NewFileHook(file, timestampFormat, level)
+	terminalHook := NewTerminalHook(terminal, timestampFormat, level)
 	Logger.Level = level
-	Logger.Out = os.Stdout
-	Logger.AddHook(hook)
+	Logger.Out = ioutil.Discard
+	Logger.AddHook(fileHook)
+	Logger.AddHook(terminalHook)
 }

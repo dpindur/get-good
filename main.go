@@ -6,13 +6,13 @@ import (
 	"fmt"
 	"net/url"
 	"os"
-	"os/signal"
 	"path/filepath"
 	"strings"
 	"sync"
 
 	lib "github.com/dpindur/get-good/libgetgood"
 	. "github.com/dpindur/get-good/logger"
+	ui "github.com/dpindur/get-good/ui"
 	_ "github.com/mattn/go-sqlite3"
 	logrus "github.com/sirupsen/logrus"
 )
@@ -34,7 +34,7 @@ func main() {
 
 	// Workers
 	if *workerCount < 1 {
-		fmt.Println("please specify 1 or more worker threads")
+		fmt.Printf("please specify 1 or more worker threads\n")
 		flagsInvalid = true
 	}
 
@@ -44,14 +44,14 @@ func main() {
 	}
 	dbFilePath, err := filepath.Abs(*dbFile)
 	if err != nil {
-		fmt.Println("error resolving path %v\n", *dbFile)
+		fmt.Printf("error resolving path %v\n", *dbFile)
 		flagsInvalid = true
 	}
 
 	// Url
 	urlProvided := true
 	if *urlStr == "" {
-		fmt.Println("please provide a URL to perform the directory bust against")
+		fmt.Printf("please provide a URL to perform the directory bust against\n")
 		flagsInvalid = true
 		urlProvided = false
 	}
@@ -60,18 +60,18 @@ func main() {
 	}
 	_, err = url.ParseRequestURI(*urlStr)
 	if err != nil && urlProvided {
-		fmt.Println("error parsing url, please ensure it includes the protocol for example http://google.com/")
+		fmt.Printf("error parsing url, please ensure it includes the protocol for example http://google.com/\n")
 		flagsInvalid = true
 	}
 
 	// Wordlist
 	if *wordsFile == "" {
-		fmt.Println("please provide a wordlist file")
+		fmt.Printf("please provide a wordlist file\n")
 		flagsInvalid = true
 	}
 	wordsFilePath, err := filepath.Abs(*wordsFile)
 	if err != nil {
-		fmt.Println("error resolving path %v\n", *wordsFile)
+		fmt.Printf("error resolving path %v\n", *wordsFile)
 		flagsInvalid = true
 	}
 
@@ -102,12 +102,12 @@ func main() {
 
 	// Performance modifiers
 	if *queueSize < 1 {
-		fmt.Println("please specify 1 or more for queue size")
+		fmt.Printf("please specify 1 or more for queue size\n")
 		flagsInvalid = true
 	}
 
 	if *pollerBatchSize < 1 {
-		fmt.Println("please specify 1 or more for poller batch size")
+		fmt.Printf("please specify 1 or more for poller batch size\n")
 		flagsInvalid = true
 	}
 
@@ -115,8 +115,14 @@ func main() {
 		os.Exit(1)
 	}
 
-	ConfigureLogger(logLevel, logFile)
+	pauseChan := make(chan int, 1)
+	terminal, err := ui.NewTerminal(pauseChan)
+	if err != nil {
+		os.Exit(1)
+	}
+	terminal.Render()
 
+	ConfigureLogger(logLevel, terminal, logFile)
 	Logger.Infof("Starting get-good directory bust of %v", *urlStr)
 	Logger.Infof("Worker threads: %v", *workerCount)
 	Logger.Infof("Database file: %v", dbFilePath)
@@ -211,7 +217,7 @@ func main() {
 	bustCompleteChan := make(chan int, 1)
 	updater := lib.StartUpdater(wg, db, errChan, responseChan, words, extensions)
 	poller := lib.StartPoller(wg, db, *pollerBatchSize, errChan, requestChan)
-	monitor := lib.StartMonitor(wg, db, errChan, bustCompleteChan)
+	monitor := lib.StartMonitor(wg, db, terminal, errChan, bustCompleteChan)
 
 	// Start http workers
 	workers := make([]*lib.HttpWorker, 0)
@@ -222,38 +228,35 @@ func main() {
 
 	// Enqueue initial request
 	updater.EnqueueRequest(&lib.Request{*urlStr})
-
-	signalChan := make(chan os.Signal, 1)
-	signal.Notify(signalChan, os.Interrupt)
-	cleanupChan := make(chan struct{})
 	go func() {
 		select {
 		case <-bustCompleteChan:
 			Logger.Infof("Directory bust complete, stopping...")
 			break
-		case <-signalChan:
-			Logger.Infof("Received an interrupt, stopping...")
+		case <-pauseChan:
+			Logger.Infof("Stopping...")
 			break
 		}
-		close(cleanupChan)
+
+		poller.Stop()
+		for _, worker := range workers {
+			worker.Stop()
+		}
+
+		Logger.Infof("Waiting for http workers to stop...")
+		httpWg.Wait()
+		monitor.Stop()
+		updater.Stop()
+
+		if workerErr == nil {
+			Logger.Infof("Waiting for updater, poller and monitor to stop...")
+			wg.Wait()
+			lib.CleanupClient()
+		} else {
+			Logger.Warnf("Terminating without properly halting routines... sorry")
+		}
+
+		terminal.StopLoop()
 	}()
-	<-cleanupChan
-
-	poller.Stop()
-	for _, worker := range workers {
-		worker.Stop()
-	}
-
-	Logger.Infof("Waiting for http workers to stop...")
-	httpWg.Wait()
-	monitor.Stop()
-	updater.Stop()
-
-	if workerErr == nil {
-		Logger.Infof("Waiting for updater, poller and monitor to stop...")
-		wg.Wait()
-		lib.CleanupClient()
-	} else {
-		Logger.Warnf("Terminating without properly halting routines... sorry")
-	}
+	terminal.Loop()
 }

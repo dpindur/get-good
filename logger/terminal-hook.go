@@ -3,28 +3,31 @@ package logger
 import (
 	"bytes"
 	"fmt"
-	"io"
 	"sort"
 	"strings"
 
 	logrus "github.com/sirupsen/logrus"
 )
 
-type FileHook struct {
-	Writer          io.Writer
+type Terminal interface {
+	AddLog(log []byte)
+}
+
+type TerminalHook struct {
+	Terminal        Terminal
 	TimestampFormat string
 	LogLevels       []logrus.Level
 }
 
-func NewFileHook(writer io.Writer, timestampFormat string, level logrus.Level) *FileHook {
-	return &FileHook{
-		Writer:          writer,
+func NewTerminalHook(terminal Terminal, timestampFormat string, level logrus.Level) *TerminalHook {
+	return &TerminalHook{
+		Terminal:        terminal,
 		TimestampFormat: timestampFormat,
 		LogLevels:       getLogLevels(level),
 	}
 }
 
-func (hook *FileHook) Fire(entry *logrus.Entry) error {
+func (hook *TerminalHook) Fire(entry *logrus.Entry) error {
 	// Uppercase the level text and truncate it to 4 chars
 	levelText := strings.ToUpper(entry.Level.String())
 	levelText = levelText[0:4]
@@ -36,7 +39,7 @@ func (hook *FileHook) Fire(entry *logrus.Entry) error {
 	}
 	sort.Strings(keys)
 
-	// Print log entry to a buffer and append a newline
+	// Print log entry to a buffer
 	b := &bytes.Buffer{}
 	fmt.Fprintf(b, "%s[%s] %-64s ", levelText, entry.Time.Format(hook.TimestampFormat), entry.Message)
 	for _, k := range keys {
@@ -44,13 +47,12 @@ func (hook *FileHook) Fire(entry *logrus.Entry) error {
 		fmt.Fprintf(b, " %s=", k)
 		appendValue(b, v)
 	}
-	b.WriteByte('\n')
 
-	// Write buffer to file
-	_, err := hook.Writer.Write(b.Bytes())
-	return err
+	// Write buffer to terminal
+	hook.Terminal.AddLog(b.Bytes())
+	return nil
 }
 
-func (hook *FileHook) Levels() []logrus.Level {
+func (hook *TerminalHook) Levels() []logrus.Level {
 	return hook.LogLevels
 }
