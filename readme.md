@@ -13,7 +13,7 @@ Get Good offers the following
 
 ## Usage
 ```
-Usage of get-good:
+Usage of ./get-good:
   -clear-db
     	clear the database before starting
   -db string
@@ -28,6 +28,8 @@ Usage of get-good:
     	number of urls the poller can pull from the database in one go (default 5000)
   -queue-size int
     	number of urls that can sit in the queue at one time (default 5000)
+  -timeout int
+    	http timeout in seconds, specify zero for no timeout (default 10)
   -url string
     	url to perform directory bust against
   -wordlist string
@@ -36,7 +38,7 @@ Usage of get-good:
     	number of worker threads (default 5)
 ```
 
-Send a SIGINT to halt directory busting. Any in-flight requests will be completed before exiting.
+Press `q` to halt directory busting. Any in-flight requests will be completed before exiting.
 
 ## Examples
 
