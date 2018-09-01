@@ -113,9 +113,10 @@ func main() {
 	}
 
 	if *timeout < 0 {
-		fmt.Println("please specify 0 or more for http client timeout")
+		fmt.Printf("please specify 0 or more for http client timeout\n")
 		flagsInvalid = true
 	}
+
 	if flagsInvalid {
 		os.Exit(1)
 	}
@@ -128,7 +129,7 @@ func main() {
 	terminal.Render()
 
 	ConfigureLogger(logLevel, terminal, logFile)
-	Logger.Infof("Starting get-good directory bust of %v", *urlStr)
+	Logger.Infof("Starting get-good directory bust of %v, press q to stop", *urlStr)
 	Logger.Infof("Worker threads: %v", *workerCount)
 	Logger.Infof("Database file: %v", dbFilePath)
 	Logger.Infof("Wordlist file: %v", wordsFilePath)
