@@ -17,16 +17,17 @@ type Updater struct {
 	responseChan chan *Response
 	words        []string
 	extensions   []string
+	recurse      bool
 }
 
 type Request struct {
 	Url string
 }
 
-func StartUpdater(wg *sync.WaitGroup, db *DBConn, errChan chan *WorkerError, responseChan chan *Response, words []string, extensions []string) *Updater {
+func StartUpdater(wg *sync.WaitGroup, db *DBConn, errChan chan *WorkerError, responseChan chan *Response, words []string, extensions []string, recurse bool) *Updater {
 	haltChan := make(chan int)
 	requestChan := make(chan *Request)
-	updater := &Updater{true, wg, haltChan, db, errChan, requestChan, responseChan, words, extensions}
+	updater := &Updater{true, wg, haltChan, db, errChan, requestChan, responseChan, words, extensions, recurse}
 	wg.Add(1)
 	go updater.work()
 	return updater
@@ -100,7 +101,7 @@ func (updater *Updater) handleResponse(res *Response) error {
 	}
 
 	// If response is successful, add recursive urls
-	if res.Response.StatusCode == 200 {
+	if res.Response.StatusCode == 200 && updater.recurse == true {
 		Logger.Infof("[Successful response for %v](fg-green)", res.Url)
 		updater.addURLs(res.Url)
 	}
