@@ -29,6 +29,7 @@ func main() {
 	queueSize := flag.Int("queue-size", 5000, "number of urls that can sit in the queue at one time")
 	pollerBatchSize := flag.Int("poller-batch-size", 5000, "number of urls the poller can pull from the database in one go")
 	timeout := flag.Int("timeout", 10, "http timeout in seconds, specify zero for no timeout")
+	recurse := flag.Bool("recurse", false, "recursively search directories")
 
 	flag.Parse()
 	flagsInvalid := false
@@ -221,7 +222,7 @@ func main() {
 	requestChan := make(chan *lib.Request, *queueSize)
 	responseChan := make(chan *lib.Response, *queueSize)
 	bustCompleteChan := make(chan int, 1)
-	updater := lib.StartUpdater(wg, db, errChan, responseChan, words, extensions)
+	updater := lib.StartUpdater(wg, db, errChan, responseChan, words, extensions, *recurse)
 	poller := lib.StartPoller(wg, db, *pollerBatchSize, errChan, requestChan)
 	monitor := lib.StartMonitor(wg, db, terminal, errChan, bustCompleteChan)
 

@@ -28,6 +28,8 @@ Usage of ./get-good:
     	number of urls the poller can pull from the database in one go (default 5000)
   -queue-size int
     	number of urls that can sit in the queue at one time (default 5000)
+  -recurse
+      recursively search directories
   -timeout int
     	http timeout in seconds, specify zero for no timeout (default 10)
   -url string
