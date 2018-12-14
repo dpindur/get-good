@@ -1,6 +1,7 @@
 package libgetgood
 
 import (
+	"crypto/tls"
 	"io/ioutil"
 	"net/http"
 	"sync"
@@ -86,6 +87,7 @@ func ConfigureClient(timeout int) {
 			Transport: &http.Transport{
 				MaxIdleConns:        200,
 				MaxIdleConnsPerHost: 200,
+				TLSClientConfig:     &tls.Config{InsecureSkipVerify: true},
 			},
 			Timeout: time.Duration(timeout) * time.Second,
 		}
