@@ -77,7 +77,7 @@ func (poller *Poller) pollDatabase() error {
 		case poller.requestChan <- &Request{url}:
 			break
 		default:
-			Logger.Infof("Request queue full, pausing poller for five seconds...")
+			Logger.Debugf("Request queue full, pausing poller for five seconds...")
 			time.Sleep(5 * time.Second)
 		}
 	}
